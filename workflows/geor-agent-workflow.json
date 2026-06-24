@@ -1,0 +1,330 @@
+{
+  "name": "GEOR — WhatsApp AI Agent (GeorLabs)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "geor-whatsapp-agent",
+        "options": {}
+      },
+      "id": "f2281941-8154-4991-afea-903e0d0c7ea4",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-1808, -176],
+      "webhookId": "geor-whatsapp-agent-main"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cond-event",
+              "leftValue": "={{ $json.body.event }}",
+              "rightValue": "messages.upsert",
+              "operator": { "type": "string", "operation": "equals" }
+            },
+            {
+              "id": "cond-fromme",
+              "leftValue": "={{ $json.body.data.key.fromMe }}",
+              "rightValue": false,
+              "operator": { "type": "boolean", "operation": "false" }
+            },
+            {
+              "id": "cond-conv",
+              "leftValue": "={{ $json.body.data.message.conversation || $json.body.data.message.audioMessage }}",
+              "rightValue": "",
+              "operator": { "type": "string", "operation": "exists", "singleValue": true }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "1ce4d913-8afb-49bb-b951-99f5efd19748",
+      "name": "Filtrar mensajes",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [-1584, -176]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Webhook').item.json.body.data.message.conversation }}",
+        "options": {
+          "systemMessage": "=Eres Geor, el asistente virtual de la empresa.\nEres una persona real al otro lado del chat. Natural, cercano, directo.\nTu misión es guiar al cliente hacia una acción concreta sin que se note que eres un bot.\n\n━━━━━━━━━━━━━━━━━━\nDATOS DEL CLIENTE\n━━━━━━━━━━━━━━━━━━\nnombre: {{$('Buscar cliente en Sheets').item.json.Nombre}}\nnegocio: {{$('Buscar cliente en Sheets').item.json.Negocio}}\nsector: {{$('Buscar cliente en Sheets').item.json.Sector}}\nemail: {{$('Buscar cliente en Sheets').item.json.Email}}\nestado: {{$('Buscar cliente en Sheets').item.json.estado}}\n\n━━━━━━━━━━━━━━━━━━\nREGLAS DE ORO\n━━━━━━━━━━━━━━━━━━\n- UNA sola pregunta por mensaje. Para. Espera respuesta. Siempre.\n- Máximo 2 líneas por mensaje fuera del menú y los planes.\n- Reacciona a lo que dice el cliente antes de responder.\n- Varía tus respuestas. Nunca uses la misma frase dos veces.\n- Ortografía perfecta en todo momento.\n- Responde siempre en el idioma del cliente.\n- NUNCA des precios ni cifras.\n- NUNCA suenes a bot de call center.\n- NUNCA hagas más de una pregunta por mensaje.\n- NUNCA muestres [[LLAMADA_SOLICITADA]] ni el JSON al cliente.\n\n━━━━━━━━━━━━━━━━━━\nMENÚ PRINCIPAL\n━━━━━━━━━━━━━━━━━━\n\"¡Encantado, [nombre]! ¿Qué te viene mejor?\n\n1️⃣ Ver qué hacemos\n2️⃣ Agendar una reunión\n3️⃣ Hablar con el equipo\n4️⃣ ¿Qué es un agente de IA?\"\n\n━━━━━━━━━━━━━━━━━━\nPRECIOS — REGLA ABSOLUTA\n━━━━━━━━━━━━━━━━━━\nSi el cliente pregunta por precios → responde SIEMPRE:\n\"Los precios los gestiona el equipo personalmente porque dependen de cada negocio.\nTe contactan directamente 👇\n📱 [NÚMERO_COMERCIAL]\"\n\n⚠️ NUNCA inventes precios. NUNCA des cifras.\n\n━━━━━━━━━━━━━━━━━━\nOPCIÓN 2 — AGENDAR REUNIÓN\n━━━━━━━━━━━━━━━━━━\n\"Perfecto, [nombre]. Aquí tienes mi disponibilidad 👇\n📅 [CALENDLY_URL]\"\n\n━━━━━━━━━━━━━━━━━━\nOPCIÓN 3 — HABLAR CON EL EQUIPO\n━━━━━━━━━━━━━━━━━━\nSI ya tienes nombre + negocio + sector + email completos:\n→ Ejecuta [[LLAMADA_SOLICITADA]] y cierra.\n\nSI faltan datos → recógelos DE UNO EN UNO.\n\n[[LLAMADA_SOLICITADA]]{\"nombre\":\"[valor]\",\"negocio\":\"[valor]\",\"sector\":\"[valor]\",\"email\":\"[valor]\"}\n\n━━━━━━━━━━━━━━━━━━\nCLIENTE MOLESTO\n━━━━━━━━━━━━━━━━━━\n\"Entiendo, [nombre]. Lo mejor es que hables directamente con el equipo 👇\n📱 [NÚMERO_COMERCIAL]\"\n→ Ejecuta [[LLAMADA_SOLICITADA]] automáticamente si tienes los datos.\n\n━━━━━━━━━━━━━━━━━━\nFALLBACK\n━━━━━━━━━━━━━━━━━━\nPrimera vez: \"No te he entendido bien 😅 ¿Me dices qué necesitas?\"\nSegunda vez: \"Mejor te paso con el equipo 👇\n📱 [NÚMERO_COMERCIAL]\""
+        }
+      },
+      "id": "d62afa8d-8f75-451a-a684-b3c8ce5d4a91",
+      "name": "Agente de IA",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [-592, 32]
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Webhook').item.json.body.data.key.remoteJid }}",
+        "contextWindowLength": 15
+      },
+      "id": "b9bc13fd-9672-405d-9037-9a77b556cd50",
+      "name": "Memoria simple",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [-560, 272]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://YOUR_EVOLUTION_API_URL/message/sendText/YOUR_INSTANCE_NAME",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "YOUR_EVOLUTION_API_KEY" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"number\": \"{{ $('Salida en parsear').item.json.numero }}\",\n  \"text\": \"{{ $('Salida en parsear').item.json.output.replace(/\"/g, '\\\\\"').replace(/\\n/g, '\\\\n') }}\"\n}",
+        "options": {}
+      },
+      "id": "e18bf5d5-8df8-4161-be0f-5044872ce9c4",
+      "name": "Enviar respuesta",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [192, -32],
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            { "field": "weeks", "triggerAtDay": [1], "triggerAtHour": 9 }
+          ]
+        }
+      },
+      "id": "dbbfb09c-cae3-4ac6-aae2-c4c34cdf6529",
+      "name": "Lunes 9:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [992, 96]
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Leads"
+        },
+        "options": {}
+      },
+      "id": "6b08f0f9-d09f-43f3-a412-e431bfe005d8",
+      "name": "Leer todos los leads",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [1216, 96],
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "retryOnFail": true,
+      "credentials": {
+        "googleApi": {
+          "id": "YOUR_GOOGLE_SERVICE_ACCOUNT_CREDENTIAL_ID",
+          "name": "Google Service Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst now = new Date();\nconst weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);\n\nlet nuevos = 0, contactados = 0, pendientes = 0, inactivos = 0, citasAgendadas = 0;\n\nfor (const item of items) {\n  const row = item.json;\n  if (!row.Numero) continue;\n  const fecha = new Date(row.Fecha || row.ultima_interaccion || 0);\n  const estado = (row.estado || 'nuevo').toLowerCase();\n  if (fecha >= weekAgo) nuevos++;\n  if (estado === 'contactado') contactados++;\n  if (estado === 'pendiente') pendientes++;\n  if (estado === 'inactivo') inactivos++;\n  if (estado === 'cita_agendada') citasAgendadas++;\n}\n\nconst fechaInicio = weekAgo.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });\nconst fechaFin = now.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });\n\nconst mensaje = `📊 *Reporte Semanal*\\n_${fechaInicio} — ${fechaFin}_\\n\\n🆕 Leads nuevos: ${nuevos}\\n✅ Contactados: ${contactados}\\n⏳ Pendientes: ${pendientes}\\n💤 Inactivos: ${inactivos}\\n📅 Citas agendadas: ${citasAgendadas}\\n\\n_Generado automáticamente por Geor_ 🤖`;\n\nreturn [{ json: { mensaje, nuevos, contactados, pendientes, inactivos, citasAgendadas } }];"
+      },
+      "id": "42e4991b-3190-4f3b-a045-9f129aeb9097",
+      "name": "Calcular métricas",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1440, 96]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://YOUR_EVOLUTION_API_URL/message/sendText/YOUR_INSTANCE_NAME",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "YOUR_EVOLUTION_API_KEY" }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "number", "value": "YOUR_COMMERCIAL_PHONE_NUMBER" },
+            { "name": "text", "value": "={{ $json.mensaje }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "8d81d423-f098-4de3-a98d-082df06ed4a6",
+      "name": "Enviar reporte al comercial",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1664, 96]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "hours", "hoursInterval": 6 }]
+        }
+      },
+      "id": "71d0c74f-b1d7-45ff-92c0-f7312921b742",
+      "name": "Cada 6 horas",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [-1120, 736]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst now = new Date();\nconst cutoff48h = new Date(now.getTime() - 48 * 60 * 60 * 1000);\n\nconst parseDate = (str) => {\n  if (!str) return new Date(0);\n  const parts = str.split('/');\n  if (parts.length === 3) return new Date(parts[2], parts[1]-1, parts[0]);\n  return new Date(str);\n};\n\nconst inactivos = items.filter(item => {\n  const row = item.json;\n  if (!row.Numero) return false;\n  const estado = (row.estado || 'nuevo').toLowerCase();\n  const ultimaInteraccion = parseDate(row.ultima_interaccion || row.Fecha);\n  if (['inactivo', 'cita_agendada', 'cerrado'].includes(estado)) return false;\n  return ultimaInteraccion < cutoff48h;\n});\n\nif (inactivos.length === 0) return [{ json: { sinInactivos: true, total: 0 } }];\n\nreturn inactivos.map(item => ({\n  json: {\n    ...item.json,\n    sinInactivos: false,\n    numero: String(item.json.Numero || '').replace(/=/g, '').replace('@s.whatsapp.net', '')\n  }\n}));"
+      },
+      "id": "ef24f5f8-e762-41a3-a6f2-f94b057bf401",
+      "name": "Filtrar inactivos 48h",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-672, 736]
+    },
+    {
+      "parameters": {
+        "jsCode": "const output = $input.first().json.output || '';\nconst remoteJid = $('Webhook').first().json.body.data.key.remoteJid;\n\nconst citaMatch = output.includes('[[CITA_SOLICITADA]]');\nconst llamadaMatch = output.includes('[[LLAMADA_SOLICITADA]]');\n\nlet nombreCita = 'Cliente', fechaCita = '', horaCita = '';\nconst citaDataMatch = output.match(/\\[\\[CITA_SOLICITADA\\]\\]\\s*(\\{[\\s\\S]*?\\})/);\nif (citaDataMatch) {\n  try {\n    const data = JSON.parse(citaDataMatch[1]);\n    nombreCita = data.nombre || 'Cliente';\n    fechaCita = data.fecha || '';\n    horaCita = data.hora || '';\n  } catch(e) {}\n}\n\nlet nombreLlamada = 'Cliente';\nconst llamadaDataMatch = output.match(/\\[\\[LLAMADA_SOLICITADA\\]\\]\\s*(\\{[\\s\\S]*?\\})/);\nif (llamadaDataMatch) {\n  try {\n    const data = JSON.parse(llamadaDataMatch[1]);\n    nombreLlamada = data.nombre || 'Cliente';\n  } catch(e) {}\n}\n\nconst cleanOutput = output\n  .replace(/\\[\\[CITA_SOLICITADA\\]\\][\\s\\S]*?\\{[\\s\\S]*?\\}/g, '')\n  .replace(/\\[\\[LLAMADA_SOLICITADA\\]\\][\\s\\S]*?\\{[\\s\\S]*?\\}/g, '')\n  .replace('[[CITA_SOLICITADA]]', '')\n  .replace('[[LLAMADA_SOLICITADA]]', '')\n  .trim();\n\nconst ahora = new Date();\nconst hora = ahora.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', timeZone: 'Atlantic/Canary' });\nconst fecha = ahora.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Atlantic/Canary' });\n\nreturn [{\n  json: {\n    output: cleanOutput,\n    citaSolicitada: citaMatch,\n    llamadaSolicitada: llamadaMatch,\n    nombreCita, fechaCita, horaCita, nombreLlamada,\n    remoteJid,\n    numero: remoteJid.split('@')[0],\n    numeroLimpio: remoteJid.replace('@s.whatsapp.net', '').replace('@c.us', ''),\n    horaContacto: hora,\n    fechaContacto: fecha\n  }\n}];"
+      },
+      "id": "072f0e0d-621b-421c-a9a1-bcbdd9be1c5e",
+      "name": "Salida en parsear",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-288, 48]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "calendly-cita",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "adf60ecf-7ab2-4bec-9cc5-caee8d111696",
+      "name": "Webhook Calendly",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-208, -368],
+      "webhookId": "calendly-cita"
+    },
+    {
+      "parameters": {
+        "jsCode": "const payload = $input.item.json.body.payload;\nconst nombre = payload.name || '';\nconst email = payload.email || '';\nconst preguntas = payload.questions_and_answers || [];\nlet telefono = '', negocio = '';\nfor (const q of preguntas) {\n  const pregunta = q.question.toLowerCase();\n  if (pregunta.includes('whatsapp') || pregunta.includes('teléfono')) telefono = q.answer.replace(/[^0-9]/g, '');\n  if (pregunta.includes('negocio')) negocio = q.answer;\n}\nreturn [{ json: { nombre, email, telefono, negocio, fechaCita: payload.event?.start_time || '' } }];"
+      },
+      "id": "e1541e6b-f170-46a6-b9fc-c0a19e609dfe",
+      "name": "Parsear datos Calendly",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [224, -368]
+    },
+    {
+      "parameters": {
+        "content": "# 🤖 AGENTE PRINCIPAL\n## Recibe mensajes WhatsApp\n## Responde con IA · Capta leads\n## Transcribe audios con Whisper",
+        "height": 240, "width": 432, "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [-1616, -368],
+      "typeVersion": 1,
+      "id": "d515491c-0de6-48f7-b2be-8fbbc72d7563",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "# 📊 REPORTE SEMANAL\n## Cada lunes a las 9:00\n## Lee leads · Manda resumen al comercial",
+        "height": 256, "width": 416, "color": 2
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [992, -144],
+      "typeVersion": 1,
+      "id": "5d721873-6e20-4f8b-a8bf-fc8fc0610ce1",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "# 📅 RECORDATORIO CITAS 24H\n## Cada día a las 9:00\n## Busca citas de mañana · Avisa al cliente",
+        "height": 304, "width": 368, "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [608, 512],
+      "typeVersion": 1,
+      "id": "68176c6a-ff4f-4d53-83f7-29672767d6f4",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "# 🔔 SEGUIMIENTO INACTIVOS\n## Cada 6 horas\n## Detecta sin respuesta +48h · Reactiva automáticamente",
+        "height": 224, "width": 528, "color": "#F9D2D2"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [-1120, 544],
+      "typeVersion": 1,
+      "id": "f13eab8a-342f-4534-8db6-ee5ef58aac80",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "content": "# 🗓️ INTEGRACIÓN CALENDLY\n## Recibe webhooks de nuevas citas\n## Actualiza Sheets · Avisa al comercial",
+        "height": 224, "width": 432, "color": "#F4F9A4"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [-128, -640],
+      "typeVersion": 1,
+      "id": "e6e71bd9-00e3-4cdd-9112-f6c83b874d40",
+      "name": "Sticky Note4"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "Filtrar mensajes", "type": "main", "index": 0 }]]
+    },
+    "Agente de IA": {
+      "main": [[{ "node": "Salida en parsear", "type": "main", "index": 0 }]]
+    },
+    "Memoria simple": {
+      "ai_memory": [[{ "node": "Agente de IA", "type": "ai_memory", "index": 0 }]]
+    },
+    "Lunes 9:00": {
+      "main": [[{ "node": "Leer todos los leads", "type": "main", "index": 0 }]]
+    },
+    "Leer todos los leads": {
+      "main": [[{ "node": "Calcular métricas", "type": "main", "index": 0 }]]
+    },
+    "Calcular métricas": {
+      "main": [[{ "node": "Enviar reporte al comercial", "type": "main", "index": 0 }]]
+    },
+    "Cada 6 horas": {
+      "main": [[{ "node": "Filtrar inactivos 48h", "type": "main", "index": 0 }]]
+    },
+    "Webhook Calendly": {
+      "main": [[{ "node": "Parsear datos Calendly", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "meta": {
+    "description": "WhatsApp AI Agent built with n8n + Evolution API + OpenAI. Sanitized version — replace all YOUR_* placeholders with your own credentials before use.",
+    "author": "Noelia Soto — GeorLabs (georlabs.com)"
+  }
+}
