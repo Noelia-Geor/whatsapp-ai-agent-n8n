@@ -1,9 +1,10 @@
 # 🤖 WhatsApp AI Agent with n8n
 
-Agente conversacional para WhatsApp construido con **n8n**, **Evolution API** y **Groq/OpenAI**.  
+Agente conversacional para WhatsApp construido con **n8n**, **Evolution API** y **OpenAI/Groq**.  
 Diseñado para automatizar la atención al cliente, captación de leads y gestión de citas en negocios reales.
 
-> ⚡ En producción real con clientes activos desde 2025.
+> ⚡ En producción real con clientes activos desde 2025.  
+> 🎯 Demo funcional disponible — escribe a [sotoveganoelia@gmail.com](mailto:sotoveganoelia@gmail.com) para acceso.
 
 ---
 
@@ -12,34 +13,77 @@ Diseñado para automatizar la atención al cliente, captación de leads y gesti�
 - Responde consultas de clientes por WhatsApp de forma autónoma 24/7
 - Clasifica leads automáticamente según intención y nivel de interés
 - Gestiona citas con integración directa a Calendly
+- Transcribe mensajes de audio con Whisper
 - Envía recordatorios automáticos 24h antes de cada cita
 - Genera informes semanales de actividad en Google Sheets
-- Reactiva leads inactivos con follow-up automatizado
-- Escala conversaciones complejas al equipo humano cuando es necesario
+- Reactiva leads inactivos con follow-up automatizado (+48h sin respuesta)
+- Detecta si el bot está pausado por el equipo humano y para automáticamente
+- Escala conversaciones complejas al equipo cuando es necesario
 
 ---
 
-## 🏗️ Arquitectura
+## 🏗️ Arquitectura del sistema
 
 ```
-WhatsApp (usuario)
-       ↓
-Evolution API v2  ←→  Webhook
-       ↓
-    n8n (orquestador)
-       ↓
-  ┌────┴────┐
-  │         │
-Groq      OpenAI
-(Llama)  (GPT-4o)
-  │         │
-  └────┬────┘
-       ↓
-Google Sheets (memoria + logs)
-       ↓
-Calendly (gestión de citas)
-       ↓
-WhatsApp (respuesta)
+┌─────────────────────────────────────────────────────────┐
+│                   FLUJO PRINCIPAL                        │
+│                                                         │
+│  WhatsApp (usuario)                                     │
+│        │                                                │
+│        ▼                                                │
+│  Evolution API v2  ──webhook──►  n8n                    │
+│                                   │                     │
+│                          ┌────────▼────────┐            │
+│                          │  Filtrar mensaje │            │
+│                          │  - fromMe: false │            │
+│                          │  - event: upsert │            │
+│                          └────────┬────────┘            │
+│                                   │                     │
+│                          ┌────────▼────────┐            │
+│                          │   ¿Es audio?    │            │
+│                          └───┬─────────┬───┘            │
+│                         SÍ  │         │  NO             │
+│                              ▼         ▼                │
+│                        Whisper    Buscar cliente        │
+│                       (OpenAI)    en Google Sheets      │
+│                              │         │                │
+│                              └────┬────┘                │
+│                                   │                     │
+│                          ┌────────▼────────┐            │
+│                          │  ¿Bot pausado?  │            │
+│                          └───┬─────────┬───┘            │
+│                         SÍ  │         │  NO             │
+│                              ▼         ▼                │
+│                            STOP    Agente de IA         │
+│                                    (OpenAI/Groq)        │
+│                                        │                │
+│                                   Parsear output        │
+│                                        │                │
+│                          ┌─────────────┼──────────┐    │
+│                          ▼             ▼          ▼    │
+│                    ¿Cita?       ¿Llamada?    Responder  │
+│                    Calendly     Avisar       WhatsApp   │
+│                    URL          comercial               │
+└─────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────┐
+│              WORKFLOWS AUTOMÁTICOS                       │
+│                                                         │
+│  📊 REPORTE SEMANAL (Lunes 9:00)                        │
+│  Cron ──► Leer Sheets ──► Calcular métricas ──► WhatsApp│
+│                                                         │
+│  🔔 SEGUIMIENTO INACTIVOS (Cada 6h)                     │
+│  Cron ──► Leer Sheets ──► Filtrar +48h ──► Mensaje      │
+│           ──► Marcar como inactivo en Sheets            │
+│                                                         │
+│  📅 RECORDATORIO CITAS 24H (Diario 9:00)               │
+│  Cron ──► Leer Sheets ──► Filtrar citas mañana          │
+│           ──► Recordatorio WhatsApp ──► Marcar enviado  │
+│                                                         │
+│  🗓️ WEBHOOK CALENDLY                                    │
+│  Calendly ──► Parsear datos ──► Actualizar Sheets        │
+│              ──► Avisar comercial por WhatsApp          │
+└─────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -50,33 +94,25 @@ WhatsApp (respuesta)
 |---|---|
 | Automatización | n8n (self-hosted) |
 | WhatsApp API | Evolution API v2 |
-| LLM Principal | Groq (Llama 3.3 70B) |
-| LLM Premium | OpenAI GPT-4o-mini |
-| Base de datos | Google Sheets |
+| LLM Principal | OpenAI GPT-4o-mini |
+| LLM Alternativo | Groq (Llama 3.3 70B) |
+| Transcripción audio | OpenAI Whisper |
+| Base de datos | Google Sheets (Service Account) |
 | Citas | Calendly Webhook |
-| Infraestructura | Docker + EasyPanel + Hostinger VPS |
+| Memoria conversacional | Buffer Window (15 mensajes) |
+| Infraestructura | Docker + EasyPanel + VPS |
 
 ---
 
 ## 📋 Workflows incluidos
 
-### 1. `main-agent.json`
-Workflow principal del agente. Recibe mensajes de WhatsApp, procesa con LLM y responde.  
-Incluye: detección de intención, gestión de contexto, clasificación de lead, routing a subflows.
-
-### 2. `appointment-reminder-24h.json`
-Revisa citas programadas en Google Sheets y envía recordatorio automático 24h antes.  
-Ejecutado por cron job diario.
-
-### 3. `weekly-report.json`
-Genera informe semanal de métricas: mensajes procesados, leads captados, citas agendadas.  
-Envía resumen al equipo por WhatsApp.
-
-### 4. `inactive-followup.json`
-Detecta leads que no han respondido en X días y envía mensaje de reactivación automático.
-
-### 5. `calendly-webhook.json`
-Recibe eventos de Calendly (nueva cita, cancelación, reprogramación) y actualiza Google Sheets.
+### `workflows/geor-agent-workflow.json`
+Workflow principal completo con los 4 sistemas integrados:
+- **Agente principal** — recibe, procesa y responde mensajes WhatsApp
+- **Reporte semanal** — métricas automáticas cada lunes
+- **Seguimiento inactivos** — reactivación cada 6h
+- **Recordatorio citas** — aviso 24h antes
+- **Webhook Calendly** — sincronización automática de reservas
 
 ---
 
@@ -84,36 +120,40 @@ Recibe eventos de Calendly (nueva cita, cancelación, reprogramación) y actuali
 
 - n8n self-hosted (v1.0+)
 - Evolution API v2
-- Cuenta de Groq (free tier suficiente para empezar)
-- Cuenta de OpenAI (para plan premium)
+- OpenAI API Key
+- Groq API Key (opcional, alternativa gratuita)
 - Google Sheets + Service Account
-- Cuenta de Calendly (plan básico)
-- VPS con Docker (recomendado: Hostinger KVM2+)
+- Calendly (plan básico)
+- VPS con Docker
 
 ---
 
 ## 🚀 Instalación
 
-### 1. Clonar el repositorio
-```bash
-git clone https://github.com/Noelia-Geor/whatsapp-ai-agent-n8n.git
-cd whatsapp-ai-agent-n8n
+### 1. Importar workflow en n8n
+1. Abre tu instancia de n8n
+2. **Workflows → Import from file**
+3. Selecciona `workflows/geor-agent-workflow.json`
+
+### 2. Configurar credenciales
+Sustituye todos los placeholders `YOUR_*` en los nodos HTTP:
+
+| Placeholder | Valor |
+|---|---|
+| `YOUR_EVOLUTION_API_URL` | URL de tu instancia Evolution API |
+| `YOUR_EVOLUTION_API_KEY` | API Key de Evolution API |
+| `YOUR_INSTANCE_NAME` | Nombre de tu instancia WhatsApp |
+| `YOUR_GOOGLE_SHEET_ID` | ID de tu Google Sheet de leads |
+| `YOUR_COMMERCIAL_PHONE_NUMBER` | Número del comercial (con prefijo país) |
+
+### 3. Configurar webhook en Evolution API
+Apunta el webhook de tu instancia a:
+```
+https://TU_N8N_URL/webhook/geor-whatsapp-agent
 ```
 
-### 2. Importar workflows en n8n
-1. Abre tu instancia de n8n
-2. Ve a **Workflows** → **Import from file**
-3. Importa cada archivo `.json` de la carpeta `/workflows`
-
-### 3. Configurar credenciales en n8n
-- **Evolution API:** URL de tu instancia + API Key
-- **OpenAI:** API Key
-- **Groq:** API Key
-- **Google Sheets:** Service Account JSON
-- **Calendly:** Webhook URL
-
 ### 4. Activar workflows
-Activa primero `main-agent.json`, luego el resto en cualquier orden.
+Activa el workflow principal. Los cron jobs se activan automáticamente.
 
 ---
 
@@ -122,15 +162,7 @@ Activa primero `main-agent.json`, luego el resto en cualquier orden.
 ```
 whatsapp-ai-agent-n8n/
 ├── workflows/
-│   ├── main-agent.json
-│   ├── appointment-reminder-24h.json
-│   ├── weekly-report.json
-│   ├── inactive-followup.json
-│   └── calendly-webhook.json
-├── prompts/
-│   └── system-prompt.md
-├── docs/
-│   └── architecture.md
+│   └── geor-agent-workflow.json
 └── README.md
 ```
 
@@ -138,14 +170,17 @@ whatsapp-ai-agent-n8n/
 
 ## 💡 Decisiones técnicas
 
-**¿Por qué n8n y no código Python puro?**  
-Velocidad de implementación y mantenimiento. n8n permite modificar lógica de negocio sin tocar código, lo cual es crítico cuando los clientes piden cambios frecuentes en producción.
+**¿Por qué n8n y no código Python puro?**
+Velocidad de implementación y mantenimiento. Modificar lógica de negocio sin tocar código es crítico cuando los clientes piden cambios en producción.
 
-**¿Por qué Groq como LLM principal?**  
-Latencia sub-segundo y tier gratuito generoso. En conversaciones de WhatsApp, la velocidad de respuesta es un factor crítico de experiencia de usuario.
+**¿Por qué Google Sheets como base de datos?**
+Para clientes pequeños/medianos ofrece visibilidad directa sin dashboard adicional. El cliente ve y edita su CRM sin formación técnica.
 
-**¿Por qué Google Sheets como base de datos?**  
-Para clientes pequeños/medianos, Google Sheets ofrece visibilidad directa de los datos sin necesidad de un dashboard adicional. El cliente puede ver y editar su CRM sin formación técnica.
+**¿Por qué memoria de 15 mensajes?**
+Balance entre contexto conversacional y coste de tokens. Suficiente para conversaciones comerciales típicas de 5-10 minutos.
+
+**¿Por qué bot_pausado flag?**
+Permite al equipo humano tomar el control de una conversación sin desactivar el agente globalmente.
 
 ---
 
@@ -153,16 +188,16 @@ Para clientes pequeños/medianos, Google Sheets ofrece visibilidad directa de lo
 
 - Tiempo de respuesta promedio: < 3 segundos
 - Disponibilidad: 24/7
-- Coste operativo estimado plan básico: < 10€/mes
+- Coste operativo estimado: < 10€/mes por cliente
 
 ---
 
-## 🔒 Seguridad y privacidad
+## 🔒 Seguridad
 
-- Ningún dato de conversación se almacena en servidores externos salvo los LLM configurados
+- Credenciales nunca hardcodeadas — todas por variables de entorno en n8n
 - Google Sheets con acceso restringido por Service Account
-- Evolution API desplegada en VPS privado
-- Sin dependencia de servicios de terceros para el core del agente
+- Evolution API en VPS privado
+- Flag `bot_pausado` para control manual en cualquier momento
 
 ---
 
