@@ -4,7 +4,7 @@ Agente conversacional para el WhatsApp de un negocio: atiende a los clientes, en
 
 Construido con **n8n**, **Evolution API** (WhatsApp), **OpenAI** y **Google Sheets**.
 
-> **Estado (septiembre 2026):** la versión anterior está desplegada en el número de demo de GeorLabs. La **v3** de este repositorio está probada de principio a fin en n8n y pendiente de despliegue.
+> **Estado (septiembre 2026):** la **v3** de este repositorio está en producción en el número de GeorLabs desde el 29/09/2026.
 
 ---
 
@@ -93,7 +93,7 @@ flowchart LR
 
 | Marcador | Qué poner |
 |---|---|
-| `YOUR_EVOLUTION_API_KEY` | Clave de tu Evolution API (mejor en una credencial Header Auth) |
+| `YOUR_EVOLUTION_API_KEY` | Token de tu instancia de Evolution. En producción los envíos usan una credencial **Header Auth** (`apikey`) y la puerta del webhook compara con ese mismo token, que es el que Evolution manda en cada evento |
 | `https://YOUR-EVOLUTION-API-HOST` / `YOUR_INSTANCE` | Tu servidor e instancia de Evolution |
 | `YOUR_GOOGLE_SHEET_ID` | Tu hoja, con las pestañas `Hoja 1` (clientes) y `MENSAJES` (historial) |
 | `34600000001` / `34600000002` | WhatsApp del comercial y del responsable |
