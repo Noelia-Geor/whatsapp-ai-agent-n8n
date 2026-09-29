@@ -17,7 +17,8 @@ Construido con **n8n**, **Evolution API** (WhatsApp), **OpenAI** y **Google Shee
 - Detecta urgencias, quejas y peticiones de contacto y **avisa al equipo con un resumen** escrito por la IA.
 - **Se pausa solo** cuando una persona del equipo escribe desde el mismo número, y se reanuda a las 2 h.
 - Recordatorio de citas 24 h antes, seguimiento de contactos inactivos y reporte semanal por WhatsApp.
-- Se presenta como asistente de IA (transparencia, en línea con el Reglamento Europeo de IA).
+- Se presenta como asistente de IA desde el primer mensaje (transparencia, en línea con el Reglamento Europeo de IA).
+- **Nunca responde en grupos**, listas de difusión, estados ni canales: el número del negocio puede estar en grupos sin riesgo.
 
 ---
 
@@ -49,6 +50,7 @@ flowchart LR
 | **Filtro en código** antes de enviar | Aunque alguien intente manipular al modelo ("olvida tus instrucciones"), las cifras con € y los trozos del prompt nunca salen. |
 | **Datos del cliente extraídos en el JSON y guardados por n8n** | Más fiable que dejar que el modelo decida cuándo usar una herramienta. Se combinan con los datos existentes y nunca se borran. |
 | **Historial de mensajes en una hoja** | Permite juntar mensajes seguidos, contar intercambios y detectar los ecos de los mensajes del propio bot entre ejecuciones distintas (la memoria interna de n8n no se comparte entre ejecuciones simultáneas). |
+| **Bloqueo de grupos en 3 capas**: la pasarela ignora grupos (`groupsIgnore`), el filtro de entrada solo admite chats individuales y hay un freno final antes de enviar | Responder en un grupo desde el número comercial sería un error grave e irreversible. Una sola capa no basta. |
 | **Persona en el bucle por defecto** | Si hay dudas, el agente no improvisa: deriva al equipo con el contexto. |
 | **Fechas y horarios calculados en n8n** | El modelo no sabe qué hora es ni cuenta bien: se lo da el sistema (zona horaria de Canarias). |
 
